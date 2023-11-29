@@ -36,7 +36,7 @@ pub mod day00;
 
 // visualizations
 
-const YEAR: &str = "2022";
+const YEAR: &str = "2023";
 
 pub async fn input_raw(day: u8) -> String {
     let url = format!("https://adventofcode.com/{}/day/{}/input", YEAR, day).to_string();
