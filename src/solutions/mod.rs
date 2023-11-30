@@ -39,7 +39,7 @@ pub mod day00;
 
 pub async fn input_raw(day: u8, example: bool) -> String {
     if example {
-        get_example_as_string(day)
+        get_example_as_string(day).await
     } else {
         let url = format!(
             "https://adventofcode.com/{}/day/{}/input",

@@ -7,6 +7,45 @@ use std::path::Path;
 use dotenv;
 use reqwest::Url;
 
+const MATCH_PATTERN_FOR_EXAMPLE_IN_HTML: &str =
+    r#"(?m)(?s)[Ff]or example[:,].*<pre><code>(.+)<\/code><\/pre>"#;
+
+pub async fn get_example_from_the_web(day: u8) -> String {
+    let url = format!(
+        "https://adventofcode.com/{}/day/{}",
+        crate::prelude::YEAR,
+        day
+    );
+    let session = dotenv::var(crate::prelude::ENV_KEY).expect(
+        format!(
+            "Please provide a .env with the {} variable",
+            crate::prelude::ENV_KEY
+        )
+        .as_str(),
+    );
+    let cookie = format!("session={}", session);
+
+    let client = reqwest::Client::builder()
+        .user_agent(crate::prelude::APP_USER_AGENT)
+        .build()
+        .unwrap();
+
+    let response = client
+        .get(url)
+        .header("cookie", cookie)
+        .send()
+        .await
+        .unwrap();
+    let body = response.text().await.unwrap();
+
+    let regex = regex::Regex::new(MATCH_PATTERN_FOR_EXAMPLE_IN_HTML).unwrap();
+    let captures_result = regex.captures(&body);
+    match captures_result {
+        Some(captures) => String::from(captures.get(1).unwrap().as_str()),
+        None => panic!("Could not find a valid example block"),
+    }
+}
+
 pub async fn get_input_as_string(input_url: &str) -> String {
     let url = input_url.to_string();
     match get_file_path_from_cache(&url) {
@@ -34,28 +73,33 @@ fn get_input_as_string_from_cache(path: &String) -> Result<String, std::io::Erro
     Ok(contents)
 }
 
-pub fn get_example_as_string(day: u8) -> String {
+pub async fn get_example_as_string(day: u8) -> String {
     match get_example_path_from_cache(day) {
-        Some(path) => {
-            let mut file = File::open(path).expect("Could not open the example.txt.");
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)
-                .expect("Could not read the example.txt.");
-            contents
+        Some(path) => get_input_as_string_from_cache(&path)
+            .expect("An issue occurred reading the example.txt"),
+        None => {
+            let example_body = get_example_from_the_web(day).await;
+            let example_path = example_path(day);
+            write_locally(&example_path, &example_body)
+                .expect("Error writing the example to the cache.");
+            example_body
         }
-        None => panic!("Please place the example.txt into the cache directory."),
     }
 }
 
-fn get_example_path_from_cache(day: u8) -> Option<String> {
-    let path = format!(
+fn example_path(day: u8) -> String {
+    format!(
         "{}{}{}{}{}",
         "_cache/",
         crate::prelude::YEAR,
         "/day/",
         day,
         "/example.txt"
-    );
+    )
+}
+
+fn get_example_path_from_cache(day: u8) -> Option<String> {
+    let path = example_path(day);
     match File::open(path.clone()) {
         Ok(_) => Some(path),
         Err(_) => None,
@@ -73,6 +117,11 @@ fn get_path_from_input_url(url: &String) -> String {
 
 fn write_new_input_locally(url: &String, input: &String) -> Result<(), std::io::Error> {
     let path = get_path_from_input_url(url);
+
+    write_locally(&path, input)
+}
+
+fn write_locally(path: &String, input: &String) -> Result<(), std::io::Error> {
     let path_obj = Path::new(&path);
     println!("CACHE PATH: {}", path);
     let parent =
