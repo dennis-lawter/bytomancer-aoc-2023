@@ -1,5 +1,6 @@
+use clap::App;
+use clap::Arg;
 use colored::Colorize;
-use std::env;
 use std::io::Write;
 
 mod input;
@@ -8,30 +9,46 @@ mod solutions;
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
-    let func: String;
-    let func_option = args.get(1);
-    if let Some(cli_func) = func_option {
-        func = cli_func.clone();
-    } else {
-        println!();
-        let prompt = String::from("Enter the function you'd like to run").on_green();
-        print!("{}", prompt);
-        print!(" ");
-        std::io::stdout().flush().unwrap();
-        let mut buffer = String::new();
-        std::io::Stdin::read_line(&std::io::stdin(), &mut buffer).unwrap();
-        func = buffer.trim().to_owned();
-    }
-    let mut submit = false;
-    let mut example = false;
-    match args.get(2) {
-        Some(arg) => {
-            submit = arg == "--submit" || arg == "-s";
-            example = arg == "--example" || arg == "-e";
+    let matches = App::new("Your CLI App")
+        .version("1.0")
+        .author("Your Name")
+        .about("Description of your app")
+        .arg(
+            Arg::with_name("FUNCTION")
+                .help("Specify the function to run")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("submit")
+                .short("s")
+                .long("submit")
+                .help("Submit option"),
+        )
+        .arg(
+            Arg::with_name("example")
+                .short("e")
+                .long("example")
+                .help("Example option"),
+        )
+        .get_matches();
+
+    let func = match matches.value_of("FUNCTION") {
+        Some(val) => val.to_owned(),
+        None => {
+            println!();
+            let prompt = String::from("Enter the function you'd like to run").on_green();
+            print!("{}", prompt);
+            print!(" ");
+            std::io::stdout().flush().unwrap();
+            let mut buffer = String::new();
+            std::io::stdin().read_line(&mut buffer).unwrap();
+            buffer.trim().to_owned()
         }
-        None => {}
-    }
+    };
+
+    let submit = matches.is_present("submit");
+    let example = matches.is_present("example");
+
     println!(
         "\n{}\n",
         format!(
