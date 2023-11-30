@@ -34,6 +34,34 @@ fn get_input_as_string_from_cache(path: &String) -> Result<String, std::io::Erro
     Ok(contents)
 }
 
+pub fn get_example_as_string(day: u8) -> String {
+    match get_example_path_from_cache(day) {
+        Some(path) => {
+            let mut file = File::open(path).expect("Could not open the example.txt.");
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)
+                .expect("Could not read the example.txt.");
+            contents
+        }
+        None => panic!("Please place the example.txt into the cache directory."),
+    }
+}
+
+fn get_example_path_from_cache(day: u8) -> Option<String> {
+    let path = format!(
+        "{}{}{}{}{}",
+        "_cache/",
+        crate::prelude::YEAR,
+        "/day/",
+        day,
+        "/example.txt"
+    );
+    match File::open(path.clone()) {
+        Ok(_) => Some(path),
+        Err(_) => None,
+    }
+}
+
 fn get_path_from_input_url(url: &String) -> String {
     let url_postfix = url
         .clone()
@@ -65,16 +93,18 @@ fn get_file_path_from_cache(input_url: &String) -> Option<String> {
 }
 
 async fn get_input_as_string_from_site(input_url: &String) -> String {
-    static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
-
-    const KEY: &str = "SESSION";
-    let session = dotenv::var(KEY)
-        .expect(format!("Please provide a .env with the {} variable", KEY).as_str());
+    let session = dotenv::var(crate::prelude::ENV_KEY).expect(
+        format!(
+            "Please provide a .env with the {} variable",
+            crate::prelude::ENV_KEY
+        )
+        .as_str(),
+    );
     let cookie = format!("session={}", session);
     let url = input_url.parse::<Url>().unwrap();
 
     let client = reqwest::Client::builder()
-        .user_agent(APP_USER_AGENT)
+        .user_agent(crate::prelude::APP_USER_AGENT)
         .build()
         .unwrap();
 

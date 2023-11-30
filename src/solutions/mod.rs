@@ -2,6 +2,7 @@ use colored::Colorize;
 use regex::Regex;
 use reqwest::Url;
 
+use crate::input::get_example_as_string;
 use crate::input::get_input_as_string;
 
 // solutions
@@ -36,11 +37,18 @@ pub mod day00;
 
 // visualizations
 
-const YEAR: &str = "2023";
-
-pub async fn input_raw(day: u8) -> String {
-    let url = format!("https://adventofcode.com/{}/day/{}/input", YEAR, day).to_string();
-    get_input_as_string(&url).await
+pub async fn input_raw(day: u8, example: bool) -> String {
+    if example {
+        get_example_as_string(day)
+    } else {
+        let url = format!(
+            "https://adventofcode.com/{}/day/{}/input",
+            crate::prelude::YEAR,
+            day
+        )
+        .to_string();
+        get_input_as_string(&url).await
+    }
 }
 
 pub async fn final_answer<T: std::fmt::Display>(answer: T, submit: bool, day: u8, level: u8) {
@@ -55,7 +63,11 @@ pub async fn final_answer<T: std::fmt::Display>(answer: T, submit: bool, day: u8
     );
 
     if submit {
-        let url = format!("https://adventofcode.com/{}/day/{}/answer", YEAR, day);
+        let url = format!(
+            "https://adventofcode.com/{}/day/{}/answer",
+            crate::prelude::YEAR,
+            day
+        );
         let request = format!("level={}&answer={}", level, answer);
         let response = perform_submit(&url, request).await;
 
