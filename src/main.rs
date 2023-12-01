@@ -65,8 +65,8 @@ async fn main() {
         // INITIAL SOLUTIONS
         "d00s1" => solutions::day00::d00s1(submit, example).await,
         "d00s2" => solutions::day00::d00s2(submit, example).await,
-        // "d01s1" => solutions::day01::d1s1(submit, example).await,
-        // "d01s2" => solutions::day01::d1s2(submit, example).await,
+        "d01s1" => solutions::day01::d01s1(submit, example).await,
+        "d01s2" => solutions::day01::d01s2(submit, example).await,
         // "d02s1" => solutions::day02::d02s1(submit, example).await,
         // "d02s2" => solutions::day02::d02s2(submit, example).await,
         // "d03s1" => solutions::day03::d03s1(submit, example).await,

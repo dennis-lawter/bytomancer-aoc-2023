@@ -42,5 +42,7 @@ I decided to add on a few features to ease development
 ## Personal Leaderboard
 
 ```
-
+      -------Part 1--------   -------Part 2--------
+Day       Time  Rank  Score       Time  Rank  Score
+  1   00:16:39  7347      0   00:35:25  3991      0
 ```
