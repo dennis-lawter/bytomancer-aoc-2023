@@ -7,7 +7,7 @@ const DAY: u8 = 2;
 
 async fn input(example: bool) -> Vec<String> {
     let raw = input_raw(DAY, example).await;
-    let lines = raw.split("\n").map(|item| item.to_owned()).collect();
+    let lines = raw.lines().map(|item| item.to_owned()).collect();
 
     lines
 }
