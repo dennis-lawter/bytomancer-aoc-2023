@@ -150,29 +150,62 @@ pub async fn d05s2(submit: bool, example: bool) {
 
     seed_ranges.sort_by(range_sort_closure);
 
-    for map in maps {
-        apply_map(&map, &mut seed_ranges);
-    }
-
     println!("Seed ranges:");
     seed_ranges.iter().for_each(|item| println!("{:?}", item));
 
-    final_answer("NaN", submit, DAY, 2).await;
+    for map in maps {
+        seed_ranges = apply_map(&map, &mut seed_ranges);
+        seed_ranges.sort_by(range_sort_closure);
+        seed_ranges.dedup();
+        //test
+        // break;
+    }
+
+    println!("Location ranges:");
+    seed_ranges.iter().for_each(|item| println!("{:?}", item));
+
+    final_answer(seed_ranges[0].start, submit, DAY, 2).await;
 }
 
-fn apply_map(map: &AlmanacMap, seed_ranges: &[Range<u64>]) {
+fn apply_map(map: &AlmanacMap, seed_ranges: &[Range<u64>]) -> Vec<Range<u64>> {
+    let mut out_ranges: Vec<Range<u64>> = Vec::with_capacity(seed_ranges.len());
+    // perform splits
     for src_range in &map.src {
         for seed_range in seed_ranges {
-            if src_range.start > seed_range.start {
-                let (_left, _right) = range_split(seed_range, src_range.start);
-            } else if src_range.start < seed_range.end {
-                let (_left, _right) = range_split(seed_range, src_range.start);
+            if seed_range.contains(&src_range.start) && seed_range.contains(&src_range.end) {
+                let (left, full_right) = range_split(seed_range, src_range.start);
+                let (mid, right) = range_split(&full_right, src_range.end);
+                out_ranges.push(left);
+                out_ranges.push(mid);
+                out_ranges.push(right);
+            } else if seed_range.contains(&src_range.start) && src_range.start > seed_range.start {
+                let (left, right) = range_split(seed_range, src_range.start);
+                out_ranges.push(left);
+                out_ranges.push(right);
+            } else if seed_range.contains(&src_range.end) && src_range.end < seed_range.end {
+                let (left, right) = range_split(seed_range, src_range.end);
+                out_ranges.push(left);
+                out_ranges.push(right);
+            } else {
+                out_ranges.push(seed_range.to_owned());
             }
         }
     }
+    // perform mapping
+    for i in 0..map.src.len() {
+        let src_range = &map.src[i];
+        let dst_range = &map.dst[i];
+        for j in 0..out_ranges.len() {
+            if src_range.contains(&out_ranges[j].start) {
+                let diff = dst_range.start as i64 - src_range.start as i64;
+                out_ranges[j].start = (out_ranges[j].start as i64 - diff) as u64;
+                out_ranges[j].end = (out_ranges[j].end as i64 - diff) as u64;
+            }
+        }
+    }
+    out_ranges
 }
 
-#[allow(dead_code)]
 fn range_split(range: &Range<u64>, start_of_right_split: u64) -> (Range<u64>, Range<u64>) {
     let left = range.start..start_of_right_split;
     let right = start_of_right_split..range.end;
