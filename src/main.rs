@@ -114,8 +114,11 @@ async fn main() {
         // "d24s1" => solutions::day24::d24s1(submit, example).await,
         // "d24s2" => solutions::day24::d24s2(submit, example).await,
         // "d25s1" => solutions::day25::d25s1(submit, example).await,
+        // "d25s2" => solutions::day25::d25s2(submit, example).await,
 
         // REVISED APPROACHES
+        "d05s1rev" => solutions::day05rev::d05s1(submit, example).await,
+        "d05s2rev" => solutions::day05rev::d05s2(submit, example).await,
 
         // VISUALIZATIONS
 

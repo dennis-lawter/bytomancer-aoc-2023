@@ -34,6 +34,7 @@ pub mod day05;
 // pub mod day25;
 
 // revisions
+pub mod day05rev;
 
 // visualizations
 

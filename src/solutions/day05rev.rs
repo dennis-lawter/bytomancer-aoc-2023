@@ -130,24 +130,6 @@ fn p1_solve_loc(src: u64, maps: &Vec<AlmanacMap>, depth: usize) -> u64 {
     p1_solve_loc(src, maps, depth + 1)
 }
 
-fn p2_solve_loc(src: u64, maps: &Vec<AlmanacMap>, depth: usize) -> u64 {
-    if depth == maps.len() {
-        return src;
-    }
-    let map = &maps[depth];
-    for i in 0..map.src.len() {
-        let src_range = &map.src[i];
-        let dst_range = &map.dst[i];
-        if src_range.contains(&src) {
-            let diff = src - src_range.start;
-            let dst = dst_range.start + diff;
-            return p2_solve_loc(dst, maps, depth + 1);
-        }
-    }
-
-    p2_solve_loc(src, maps, depth + 1)
-}
-
 pub async fn d05s2(submit: bool, example: bool) {
     let (seed_data, maps) = input(example).await;
 
@@ -162,18 +144,37 @@ pub async fn d05s2(submit: bool, example: bool) {
         i += 2;
     }
 
-    println!("Seed ranges: {:?}", seed_ranges);
+    let range_sort_closure = |left: &Range<u64>, right: &Range<u64>| -> std::cmp::Ordering {
+        left.start.cmp(&right.start)
+    };
 
-    let mut locations: Vec<u64> = Vec::with_capacity(seed_ranges.len());
+    seed_ranges.sort_by(range_sort_closure);
 
-    for seed_range in seed_ranges {
-        println!("Solving for seed range {:?}", seed_range);
-        for seed in seed_range {
-            locations.push(p2_solve_loc(seed, &maps, 0));
-        }
+    for map in maps {
+        apply_map(&map, &mut seed_ranges);
     }
 
-    let min_loc = locations.iter().min().unwrap_or(&0).to_owned();
+    println!("Seed ranges:");
+    seed_ranges.iter().for_each(|item| println!("{:?}", item));
 
-    final_answer(min_loc, submit, DAY, 1).await;
+    final_answer("NaN", submit, DAY, 2).await;
+}
+
+fn apply_map(map: &AlmanacMap, seed_ranges: &[Range<u64>]) {
+    for src_range in &map.src {
+        for seed_range in seed_ranges {
+            if src_range.start > seed_range.start {
+                let (_left, _right) = range_split(seed_range, src_range.start);
+            } else if src_range.start < seed_range.end {
+                let (_left, _right) = range_split(seed_range, src_range.start);
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn range_split(range: &Range<u64>, start_of_right_split: u64) -> (Range<u64>, Range<u64>) {
+    let left = range.start..start_of_right_split;
+    let right = start_of_right_split..range.end;
+    (left, right)
 }
