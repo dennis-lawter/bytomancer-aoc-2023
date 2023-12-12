@@ -1,5 +1,7 @@
 // use colored::Colorize;
 
+use std::collections::HashMap;
+
 use super::final_answer;
 use super::input_raw;
 
@@ -129,7 +131,8 @@ pub async fn d12s1(submit: bool, example: bool) {
         //         inner_accum += 1;
         //     }
         // }
-        let inner_accum = solve_for(&map, 0, &dmg, 0, 0);
+        let mut cache = HashMap::new();
+        let inner_accum = solve_for(&map, 0, &dmg, 0, &mut cache);
         println!("RESULT:");
         println!("{} {:?} = {}\n", spring_maps[i], dmg, inner_accum);
         accum += inner_accum;
@@ -143,66 +146,116 @@ fn solve_for(
     map_i: usize,
     dmg: &Vec<usize>,
     dmg_i: usize,
-    dmg_cnt: usize,
+    cache: &mut HashMap<(usize, usize), usize>,
 ) -> usize {
-    if map_i == map.len() {
+    // println!("Solve for {:?} {} {:?} {}", map, map_i, dmg, dmg_i);
+    // copy & mutate for debugging
+    // let mut map = map.clone();
+    let cache_key = (map_i, dmg_i);
+    match cache.get(&cache_key) {
+        Some(cache_hit) => return *cache_hit,
+        None => {}
+    }
+    let mut map_i = map_i;
+    if map_i >= map.len() {
         if dmg_i == dmg.len() {
             // println!("{:?}", map);
-            // println!("YES");
+            // println!("Consumed string and damages");
+            cache.insert(cache_key, 1);
             return 1;
         } else {
-            // println!("{:?}", map);
-            // println!("FINISHED STRING SEARCH BUT DAMAGE NOT CONSUMED");
+            cache.insert(cache_key, 0);
             return 0;
         }
     }
     if dmg_i > dmg.len() {
+        cache.insert(cache_key, 0);
         return 0;
     }
-    if dmg_i < dmg.len() && dmg_cnt > dmg[dmg_i] {
-        return 0;
+    if dmg_i == dmg.len() {
+        // has no more damage
+        for i in map_i..map.len() {
+            match map[i] {
+                DAMAGE => {
+                    cache.insert(cache_key, 0);
+                    return 0;
+                }
+                _ => {}
+            }
+        }
+        // println!("{:?}", map);
+        // println!("Consumed damages, string has no more to give");
+
+        cache.insert(cache_key, 1);
+        return 1;
     }
+
+    while map[map_i] == OPERATIONAL {
+        map_i += 1;
+        if map_i >= map.len() {
+            cache.insert(cache_key, 0);
+            return 0;
+        }
+    }
+
+    let damages_to_consume = dmg[dmg_i];
+
+    // println!("MATCH: {}", map[map_i]);
 
     match map[map_i] {
         DAMAGE => {
-            // print!("{}", DAMAGE);
-            solve_for(map, map_i + 1, dmg, dmg_i, dmg_cnt + 1)
-        }
-        OPERATIONAL => {
-            if dmg_cnt > 0 {
-                if dmg_i >= dmg.len() {
-                    // println!("{:?}", map);
-                    // println!("TOO MANY DAMAGES");
-                    0
-                } else if dmg[dmg_i] != dmg_cnt {
-                    // println!("{:?}", map);
-                    // println!("DAMAGE STRING TOO LONG");
-                    0
-                } else {
-                    // print!("{}", OPERATIONAL);
-                    solve_for(map, map_i + 1, dmg, dmg_i + 1, 0)
+            for i in map_i..map_i + damages_to_consume {
+                if i >= map.len() {
+                    cache.insert(cache_key, 0);
+                    return 0;
                 }
-            } else {
-                // print!("{}", OPERATIONAL);
-                solve_for(map, map_i + 1, dmg, dmg_i, dmg_cnt)
+                if map[i] == OPERATIONAL {
+                    cache.insert(cache_key, 0);
+                    return 0;
+                } else {
+                    // map[i] = DAMAGE;
+                }
             }
+            if map_i + damages_to_consume < map.len() {
+                if map[map_i + damages_to_consume] == DAMAGE {
+                    cache.insert(cache_key, 0);
+                    return 0;
+                } else {
+                    // map[map_i + damages_to_consume] = OPERATIONAL;
+                }
+            }
+            let res = solve_for(&map, map_i + damages_to_consume + 1, dmg, dmg_i + 1, cache);
+
+            cache.insert(cache_key, res);
+
+            res
         }
         UNKNOWN => {
-            // println!("{}", UNKNOWN);
-            let try_op = if dmg_cnt > 0 {
-                if dmg_i >= dmg.len() {
-                    // print!("-");
-                    0
-                } else if dmg[dmg_i] != dmg_cnt {
-                    // print!("_");
-                    0
-                } else {
-                    solve_for(map, map_i + 1, dmg, dmg_i + 1, 0)
+            let mut try_dmg = 1;
+            // let mut dmg_clone = map.clone();
+
+            for i in map_i..map_i + damages_to_consume {
+                if i >= map.len() {
+                    // println!("AAA");
+                    try_dmg = 0;
+                } else if map[i] == OPERATIONAL {
+                    // println!("BBB");
+                    try_dmg = 0;
                 }
-            } else {
-                solve_for(map, map_i + 1, dmg, dmg_i, dmg_cnt)
-            };
-            let try_dmg = solve_for(map, map_i + 1, dmg, dmg_i, dmg_cnt + 1);
+                // dmg_clone[i] = DAMAGE;
+            }
+            if map_i + damages_to_consume < map.len() && map[map_i + damages_to_consume] == DAMAGE {
+                try_dmg = 0;
+            } else if try_dmg == 1 {
+                // dmg_clone[map_i + damages_to_consume] = OPERATIONAL;
+                try_dmg = solve_for(map, map_i + damages_to_consume + 1, dmg, dmg_i + 1, cache);
+            }
+
+            // let mut op_clone = map.clone();
+            // op_clone[map_i] = OPERATIONAL;
+            let try_op = solve_for(map, map_i + 1, dmg, dmg_i, cache);
+
+            cache.insert(cache_key, try_op + try_dmg);
             try_op + try_dmg
             // let mut clone_op = map.clone();
             // clone_op[map_i] = OPERATIONAL;
@@ -258,9 +311,13 @@ pub async fn d12s2(submit: bool, example: bool) {
         //         inner_accum += 1;
         //     }
         // }
-        let inner_accum = solve_for(&map, 0, &dmg, 0, 0);
-        println!("RESULT:");
-        println!("{} {:?} = {}\n", spring_maps[i], dmg, inner_accum);
+        println!("SOLVING {} of {}:", i + 1, number_of_rows);
+        let input_string: String = map.iter().collect();
+        println!("INPUT: {}\n{:?}", input_string, dmg);
+        let mut cache = HashMap::new();
+        let inner_accum = solve_for(&map, 0, &dmg, 0, &mut cache);
+        println!("RESULT: {}", inner_accum);
+        println!();
         accum += inner_accum;
     }
 
