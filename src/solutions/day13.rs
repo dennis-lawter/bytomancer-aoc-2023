@@ -37,27 +37,34 @@ fn get_rotations(map: &Vec<Vec<char>>) -> (Vec<String>, Vec<String>) {
 pub async fn d13s1(submit: bool, example: bool) {
     let input = input(example).await;
     let mut accum: usize = 0;
-    // let mut normal_maps: Vec<Vec<String>> = vec![];
-    // let mut rotated_maps: Vec<Vec<String>> = vec![];
     for map in input {
-        let (normal, rotated) = get_rotations(&map);
-        match get_tb_reflection(&normal) {
-            Some(reflection) => accum += reflection * 100,
-            None => match get_tb_reflection(&rotated) {
-                Some(reflection) => accum += reflection,
-                None => todo!(),
-            },
-        }
-        // normal_maps.push(normal);
-        // rotated_maps.push(rotated);
+        accum += score_map(&map)[0];
     }
-    // for i in 0..normal_maps.len() {
-    //     let normal =
-    // }
     final_answer(accum, submit, DAY, 1).await;
 }
 
-fn get_tb_reflection(map: &Vec<String>) -> Option<usize> {
+fn score_map(map: &Vec<Vec<char>>) -> Vec<usize> {
+    let (normal, rotated) = get_rotations(&map);
+    let mut normal_reflections = get_tb_reflection(&normal);
+    for i in 0..normal_reflections.len() {
+        normal_reflections[i] *= 100;
+    }
+    let mut rotated_reflections = get_tb_reflection(&rotated);
+    normal_reflections.append(&mut rotated_reflections);
+    normal_reflections
+}
+fn score_map_avoiding(map: &Vec<Vec<char>>, avoid: usize) -> Option<usize> {
+    let scores = score_map(map);
+    for score in scores {
+        if score != avoid {
+            return Some(score);
+        }
+    }
+    None
+}
+
+fn get_tb_reflection(map: &Vec<String>) -> Vec<usize> {
+    let mut solutions = vec![];
     'row_loop: for y in 1..map.len() {
         let mut y0 = y - 1;
         let mut y1 = y;
@@ -68,9 +75,132 @@ fn get_tb_reflection(map: &Vec<String>) -> Option<usize> {
             y0 -= 1;
             y1 += 1;
         }
-        return Some(y);
+        solutions.push(y);
     }
+    solutions
+}
+
+enum MapTile {
+    Ash = '.' as isize,
+    Rock = '#' as isize,
+}
+impl TryFrom<char> for MapTile {
+    type Error = ();
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            '.' => Ok(MapTile::Ash),
+            '#' => Ok(MapTile::Rock),
+            _ => Err(()),
+        }
+    }
+}
+
+fn generate_permutations(map: &Vec<Vec<char>>) -> Vec<Vec<Vec<char>>> {
+    let width = map[0].len();
+    let height = map.len();
+    let mut output = Vec::with_capacity(width * height);
+
+    for i in 0..width * height {
+        let mut cloned_map = deep_clone(&map);
+        let y = i / width;
+        let x = i % width;
+        match TryInto::<MapTile>::try_into(map[y][x]) {
+            Ok(valid_tile) => match valid_tile {
+                MapTile::Ash => cloned_map[y][x] = MapTile::Rock as u8 as char,
+                MapTile::Rock => cloned_map[y][x] = MapTile::Ash as u8 as char,
+            },
+            Err(_) => todo!(),
+        }
+        output.push(cloned_map);
+    }
+
+    output
+}
+
+fn deep_clone(map: &Vec<Vec<char>>) -> Vec<Vec<char>> {
+    let mut new = Vec::with_capacity(map.len());
+    for y in 0..map.len() {
+        let row = map[y].clone();
+        new.push(row);
+    }
+
+    new
+}
+
+pub async fn d13s2(submit: bool, example: bool) {
+    let input = input(example).await;
+    let mut accum: usize = 0;
+    for src_map in input {
+        let original_score = score_map(&src_map)[0];
+        let permutations = generate_permutations(&src_map);
+        let new_score_result = find_perm_score(&permutations, original_score);
+        match new_score_result {
+            Some(new_score) => {
+                accum += new_score;
+            }
+            None => {
+                let (orig, rot) = get_rotations(&src_map);
+                println!("ORIGINAL MAP:");
+                debug_map(&orig);
+                println!("\nROTATED MAP:");
+                debug_map(&rot);
+                println!("Original score: {}", original_score);
+                panic!("REVIEW THE ABOVE MAP");
+            }
+        }
+        // let mut perm_num = 0;
+
+        // let (normal, rotated) = get_rotations(&map);
+        // match get_tb_reflection(&normal) {
+        //     Some(reflection) => {
+        //         accum += reflection * 100;
+        //         println!("Perm # {} scored {}", perm_num, reflection * 100);
+        //         break 'seek_perm;
+        //     }
+        //     None => match get_tb_reflection(&rotated) {
+        //         Some(reflection) => {
+        //             accum += reflection;
+        //             println!("Perm # {} scored {}", perm_num, reflection);
+        //             break 'seek_perm;
+        //         }
+        //         None => {}
+        //     },
+        // }
+        // perm_num += 1;
+    }
+    final_answer(accum, submit, DAY, 2).await;
+}
+
+// fn debug_char_map(map: &Vec<Vec<char>>) {
+//     for y in 0..map.len() {
+//         for x in 0..map[0].len() {
+//             print!("{}", map[y][x]);
+//         }
+//         println!();
+//     }
+// }
+
+fn find_perm_score(permutations: &Vec<Vec<Vec<char>>>, original_score: usize) -> Option<usize> {
+    for map in permutations {
+        // debug_char_map(&map);
+        // println!();
+        let perm_score_result = score_map_avoiding(&map, original_score);
+        match perm_score_result {
+            Some(perm_score) => {
+                if perm_score != original_score {
+                    return Some(perm_score);
+                }
+            }
+            None => {}
+        }
+    }
+
     None
+
+    // panic!("I don't think this should happen");
+
+    // original_score
 }
 
 // pub async fn d13s1(submit: bool, example: bool) {
@@ -92,14 +222,11 @@ fn get_tb_reflection(map: &Vec<String>) -> Option<usize> {
 //     final_answer(accum, submit, DAY, 1).await;
 // }
 
-// fn debug_map(map: &Vec<Vec<char>>) {
-//     for y in 0..map.len() {
-//         for x in 0..map[0].len() {
-//             print!("{}", map[y][x]);
-//         }
-//         println!();
-//     }
-// }
+fn debug_map(map: &Vec<String>) {
+    for y in 0..map.len() {
+        println!("{}", map[y]);
+    }
+}
 
 // fn get_v_reflection(map: &Vec<Vec<char>>) -> Option<usize> {
 //     for x in 0..map[0].len() - 3 {
@@ -205,9 +332,3 @@ fn get_tb_reflection(map: &Vec<String>) -> Option<usize> {
 
 // //     true
 // // }
-
-pub async fn d13s2(submit: bool, example: bool) {
-    let input = input(example).await;
-    let mut accum = 0;
-    final_answer(accum, submit, DAY, 2).await;
-}
