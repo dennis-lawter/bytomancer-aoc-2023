@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::final_answer;
 use super::input_raw;
 
@@ -129,6 +131,11 @@ impl Traveler {
         //     && self.y <= y_bounds.1 as i64
     }
     fn travel(&mut self, dir: Direction) {
+        if self.dir == dir {
+            self.num_steps_in_same_dir += 1;
+        } else {
+            self.num_steps_in_same_dir = 0;
+        }
         self.dir = dir;
         // print!("{}", self.dir);
         match self.dir {
@@ -150,6 +157,8 @@ pub async fn d17s1(submit: bool, example: bool) {
     let mut considering_paths = vec![starting_traveler];
     let mut best_heat_loss = vec![vec![usize::MAX; heat_hits[0].len()]; heat_hits.len()];
 
+    let mut seen_travelers: HashSet<Traveler> = HashSet::new();
+
     while !considering_paths.is_empty() {
         if best_heat_loss[y_bounds.1 as usize][x_bounds.1 as usize] < usize::MAX {
             break;
@@ -168,25 +177,37 @@ pub async fn d17s1(submit: bool, example: bool) {
         if traveler.can_travel(Direction::North, x_bounds, y_bounds) {
             let mut new_traveler = traveler.clone();
             new_traveler.travel(Direction::North);
-            considering_paths.push(new_traveler);
+            if !seen_travelers.contains(&new_traveler) {
+                considering_paths.push(new_traveler.clone());
+                seen_travelers.insert(new_traveler);
+            }
             // println!("N");
         }
         if traveler.can_travel(Direction::East, x_bounds, y_bounds) {
             let mut new_traveler = traveler.clone();
             new_traveler.travel(Direction::East);
-            considering_paths.push(new_traveler);
+            if !seen_travelers.contains(&new_traveler) {
+                considering_paths.push(new_traveler.clone());
+                seen_travelers.insert(new_traveler);
+            }
             // println!("E");
         }
         if traveler.can_travel(Direction::South, x_bounds, y_bounds) {
             let mut new_traveler = traveler.clone();
             new_traveler.travel(Direction::South);
-            considering_paths.push(new_traveler);
+            if !seen_travelers.contains(&new_traveler) {
+                considering_paths.push(new_traveler.clone());
+                seen_travelers.insert(new_traveler);
+            }
             // println!("S");
         }
         if traveler.can_travel(Direction::West, x_bounds, y_bounds) {
             let mut new_traveler = traveler.clone();
             new_traveler.travel(Direction::West);
-            considering_paths.push(new_traveler);
+            if !seen_travelers.contains(&new_traveler) {
+                considering_paths.push(new_traveler.clone());
+                seen_travelers.insert(new_traveler);
+            }
             // println!("W");
         }
     }
