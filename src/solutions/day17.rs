@@ -202,36 +202,36 @@ fn pop_best_heat(considering_paths: &mut Vec<Traveler>) -> Traveler {
     trav
 }
 
-fn pop_best_heat_with_dist(
-    considering_paths: &mut Vec<Traveler>,
-    manhattan_dist_to_end: usize,
-) -> Traveler {
-    let mut best_heat = usize::MAX;
-    let mut best_heat_index: usize = 0;
-    for i in 0..considering_paths.len() {
-        let my_dist = manhattan_dist_to_end
-            - considering_paths[i].y as usize
-            - considering_paths[i].x as usize;
-        if my_dist == 0 {
-            // // this guy is standing at the point
-            // // wait don't early return in case there's a tie
-            // let trav = considering_paths[i].clone();
-            // considering_paths.remove(i);
+// fn pop_best_heat_with_dist(
+//     considering_paths: &mut Vec<Traveler>,
+//     manhattan_dist_to_end: usize,
+// ) -> Traveler {
+//     let mut best_heat = usize::MAX;
+//     let mut best_heat_index: usize = 0;
+//     for i in 0..considering_paths.len() {
+//         let my_dist = manhattan_dist_to_end
+//             - considering_paths[i].y as usize
+//             - considering_paths[i].x as usize;
+//         if my_dist == 0 {
+//             // // this guy is standing at the point
+//             // // wait don't early return in case there's a tie
+//             // let trav = considering_paths[i].clone();
+//             // considering_paths.remove(i);
 
-            // return trav;
-        } else if my_dist < 4 {
-            continue;
-        }
-        if considering_paths[i].heat_lost + my_dist < best_heat {
-            best_heat = considering_paths[i].heat_lost + my_dist;
-            best_heat_index = i;
-        }
-    }
-    let trav = considering_paths[best_heat_index].clone();
-    considering_paths.remove(best_heat_index);
+//             // return trav;
+//         } else if my_dist < 4 {
+//             continue;
+//         }
+//         if considering_paths[i].heat_lost + my_dist < best_heat {
+//             best_heat = considering_paths[i].heat_lost + my_dist;
+//             best_heat_index = i;
+//         }
+//     }
+//     let trav = considering_paths[best_heat_index].clone();
+//     considering_paths.remove(best_heat_index);
 
-    trav
-}
+//     trav
+// }
 
 const IMPOSSIBLE_RETRACE: usize = 9;
 
@@ -330,37 +330,79 @@ pub async fn d17s1(submit: bool, example: bool) {
     .await;
 }
 
+#[derive(Default)]
+struct TravelerStorage {
+    storage: Vec<Vec<Traveler>>,
+    seen_travelers: HashSet<Traveler>,
+    start: usize,
+}
+impl TravelerStorage {
+    fn insert(&mut self, trav: Traveler, upper_bounds: (usize, usize)) {
+        if self.seen_travelers.contains(&trav) {
+            return;
+        }
+        self.seen_travelers.insert(trav.clone());
+        let distance_to_goal =
+            (upper_bounds.0 - trav.x as usize) + (upper_bounds.1 - trav.y as usize);
+        if distance_to_goal > 0 && distance_to_goal < 4 {
+            return;
+        }
+        let i = trav.heat_lost + distance_to_goal;
+        while self.storage.len() <= i {
+            self.storage.push(vec![]);
+        }
+        self.storage[i].push(trav);
+        if i < self.start {
+            self.start = i;
+        }
+    }
+    fn pop(&mut self) -> Traveler {
+        for i in self.start..self.storage.len() {
+            if self.storage[i].is_empty() {
+                self.start += 1;
+                // continue;
+            } else {
+                return self.storage[i].pop().unwrap();
+            }
+        }
+        panic!("Uhhh");
+    }
+}
+
 pub async fn d17s2(submit: bool, example: bool) {
     let lines = input(example).await;
     let heat_hits = lines_to_u8s(lines);
     let x_bounds: (usize, usize) = (0, heat_hits[0].len() - 1);
     let y_bounds: (usize, usize) = (0, heat_hits.len() - 1);
     let starting_traveler = Traveler::new(0, 0, Direction::None, 10);
-    let mut considering_paths = vec![starting_traveler];
     let mut best_heat_loss = vec![vec![usize::MAX; heat_hits[0].len()]; heat_hits.len()];
 
-    let mut seen_travelers: HashSet<Traveler> = HashSet::new();
+    let mut considering_paths = TravelerStorage::default();
+    let upper_bounds = (x_bounds.1, y_bounds.1);
+    considering_paths.insert(starting_traveler, upper_bounds);
+
+    // let mut seen_travelers: HashSet<Traveler> = HashSet::new();
 
     // let mut debug_futility = 0;
 
     let mut debug_i = 0;
 
-    while !considering_paths.is_empty() {
+    // let mut new_considering_paths = considering_paths.clone();
+
+    while best_heat_loss[y_bounds.1 as usize][x_bounds.1 as usize] == usize::MAX {
+        // while !considering_paths.is_empty() {
         // if debug_futility > 10 {
         //     break;
         // } else {
         //     debug_futility += 1;
         // }
-        if best_heat_loss[y_bounds.1 as usize][x_bounds.1 as usize] < usize::MAX {
-            break;
-        }
-        let traveler = pop_best_heat_with_dist(&mut considering_paths, x_bounds.1 + y_bounds.1);
-        if seen_travelers.contains(&traveler) {
-            continue;
-        } else {
-            seen_travelers.insert(traveler.clone());
-        }
-        if debug_i % 1_000 == 0 {
+        let traveler = considering_paths.pop();
+        // if seen_travelers.contains(&traveler) {
+        //     continue;
+        // } else {
+        //     seen_travelers.insert(traveler.clone());
+        // }
+        if debug_i % 10_000 == 0 {
             println!("{}", traveler);
         }
         debug_i += 1;
@@ -376,7 +418,7 @@ pub async fn d17s2(submit: bool, example: bool) {
         if traveler.heat_lost < best_heat_loss[traveler.y as usize][traveler.x as usize] {
             best_heat_loss[traveler.y as usize][traveler.x as usize] = traveler.heat_lost;
         } else {
-            // continue; // VERY questionable
+            // continue; // Verified this is not correct
         }
         // if traveler.heat_lost
         //     > best_heat_loss[traveler.y as usize][traveler.x as usize] + IMPOSSIBLE_RETRACE * 4
@@ -425,8 +467,10 @@ pub async fn d17s2(submit: bool, example: bool) {
                     &mut considering_paths,
                     &heat_hits,
                 );
-            }
+            } // }
         }
+        // considering_paths = new_considering_paths.clone();
+        // new_considering_paths = vec![];
     }
 
     final_answer(
@@ -441,26 +485,27 @@ pub async fn d17s2(submit: bool, example: bool) {
 fn spawn_travelers(
     traveler: &Traveler,
     dir: Direction,
-    considering_paths: &mut Vec<Traveler>,
+    considering_paths: &mut TravelerStorage,
     heat_hits: &Vec<Vec<u8>>,
 ) {
     let mut new_traveler = traveler.clone();
     let mut success = true;
     let mut i = 0;
+    let upper_bounds = (heat_hits[0].len() - 1, heat_hits.len() - 1);
     // march 4 times
     while success && i < 4 {
         success = new_traveler.travel(dir.clone(), &heat_hits);
         i += 1;
     }
     if success {
-        considering_paths.push(new_traveler.clone());
+        considering_paths.insert(new_traveler.clone(), upper_bounds);
     }
     while success && i < 10 {
         success = new_traveler.travel(dir.clone(), &heat_hits);
         i += 1;
 
         if success {
-            considering_paths.push(new_traveler.clone());
+            considering_paths.insert(new_traveler.clone(), upper_bounds);
         }
     }
 }
