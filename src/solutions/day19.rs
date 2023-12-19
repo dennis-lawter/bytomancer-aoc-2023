@@ -59,8 +59,7 @@ impl Comparison {
 
 struct TestRule {
     var_tested: PartVar,
-    comparison: Comparison,
-    number: u64,
+    number_range_inclusive: CustomRange,
     destination: String,
 }
 impl TestRule {
@@ -74,10 +73,14 @@ impl TestRule {
         let number = str::parse::<u64>(remaining_split[0]).unwrap();
         let destination = remaining_split[1].to_owned();
 
+        let number_range_inclusive = match comparison {
+            Comparison::Gt => CustomRange::new(number + 1, CustomRange::MAX_VALUE),
+            Comparison::Lt => CustomRange::new(CustomRange::MIN_VALUE, number - 1),
+        };
+
         Self {
             var_tested,
-            comparison,
-            number,
+            number_range_inclusive,
             destination,
         }
     }
@@ -89,14 +92,36 @@ impl TestRule {
             PartVar::A => part.a,
             PartVar::S => part.s,
         };
-        let test_result = match self.comparison {
-            Comparison::Gt => test_value > self.number,
-            Comparison::Lt => test_value < self.number,
-        };
+        let test_result = self.number_range_inclusive.contains_value(test_value);
 
         match test_result {
             true => Some(self.destination.clone()),
             false => None,
+        }
+    }
+
+    fn apply_to_super_part(&self, part: &SuperPosPart) -> Option<SuperPosPart> {
+        let test_value_range = match self.var_tested {
+            PartVar::X => part.x.clone(),
+            PartVar::M => part.m.clone(),
+            PartVar::A => part.a.clone(),
+            PartVar::S => part.s.clone(),
+        };
+
+        match test_value_range.intersection(&self.number_range_inclusive) {
+            Some(intersection) => {
+                let mut new_part = part.clone();
+                new_part.location = self.destination.clone();
+                match self.var_tested {
+                    PartVar::X => new_part.x = intersection,
+                    PartVar::M => new_part.m = intersection,
+                    PartVar::A => new_part.a = intersection,
+                    PartVar::S => new_part.s = intersection,
+                }
+
+                Some(new_part)
+            }
+            None => None,
         }
     }
 }
@@ -117,6 +142,17 @@ impl Rule {
         match self {
             Rule::Default(default_rule) => Some(default_rule.0.clone()),
             Rule::Test(test_rule) => test_rule.test(part),
+        }
+    }
+
+    fn apply_to_super_part(&self, part: &SuperPosPart) -> Option<SuperPosPart> {
+        match self {
+            Rule::Default(default_rule) => {
+                let mut new_part = part.clone();
+                new_part.location = default_rule.0.clone();
+                Some(new_part)
+            }
+            Rule::Test(test_rule) => test_rule.apply_to_super_part(part),
         }
     }
 }
@@ -157,6 +193,20 @@ impl Workflow {
 
         panic!("Failed to process part");
     }
+
+    fn process_super_part(&self, part: &SuperPosPart) -> Vec<SuperPosPart> {
+        let mut parts = vec![];
+        for rule in self.rules.iter() {
+            // TODO: this needs to split the part after rule applications,
+            // creating the inverse parts where the rule could not be applied.
+            // Only those inverse parts continue down the rules list.
+            match rule.apply_to_super_part(part) {
+                Some(part_after_rule) => parts.push(part_after_rule),
+                None => {}
+            }
+        }
+        parts
+    }
 }
 
 struct Part {
@@ -186,6 +236,136 @@ impl Part {
 
     fn score(&self) -> u64 {
         self.x + self.m + self.a + self.s
+    }
+}
+
+#[derive(Clone)]
+struct CustomRange {
+    left: u64,
+    right: u64,
+}
+impl CustomRange {
+    const MAX_VALUE: u64 = 4000;
+    const MIN_VALUE: u64 = 1;
+    fn new(left: u64, right: u64) -> Self {
+        Self { left, right }
+    }
+    fn contains_value(&self, value: u64) -> bool {
+        value >= self.left && value <= self.right
+    }
+    fn intersection(&self, other: &Self) -> Option<Self> {
+        if self.left == other.left {
+            let smaller_right = if self.right < other.right {
+                self.right
+            } else {
+                other.right
+            };
+            Some(Self::new(self.left, smaller_right))
+        } else if self.left > other.left {
+            other.intersection(self)
+        } else {
+            if other.left > self.right {
+                None
+            } else {
+                let smaller_right = if self.right < other.right {
+                    self.right
+                } else {
+                    other.right
+                };
+                Some(Self::new(other.left, smaller_right))
+            }
+        }
+    }
+}
+impl Default for CustomRange {
+    fn default() -> Self {
+        Self {
+            left: Self::MIN_VALUE,
+            right: Self::MAX_VALUE,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SuperPosPart {
+    location: String,
+    x: CustomRange,
+    m: CustomRange,
+    a: CustomRange,
+    s: CustomRange,
+}
+impl SuperPosPart {
+    // super_part.split_at(PartVar::x, 2000) => ({x = 0..=1999} {x = 2000..=4000})
+    fn split_at(&self, var_considered: PartVar, split_before_number: u64) -> Option<(Self, Self)> {
+        let mut left = self.clone();
+        let mut right = self.clone();
+
+        match var_considered {
+            PartVar::X => {
+                if self.x.contains_value(split_before_number) {
+                    return None;
+                }
+                left.x.left = split_before_number - 1;
+                right.x.right = split_before_number;
+            }
+            PartVar::M => {
+                if self.m.contains_value(split_before_number) {
+                    return None;
+                }
+                left.m.left = split_before_number - 1;
+                right.m.right = split_before_number;
+            }
+            PartVar::A => {
+                if self.a.contains_value(split_before_number) {
+                    return None;
+                }
+                left.a.left = split_before_number - 1;
+                right.a.right = split_before_number;
+            }
+            PartVar::S => {
+                if self.s.contains_value(split_before_number) {
+                    return None;
+                }
+                left.s.left = split_before_number - 1;
+                right.s.right = split_before_number;
+            }
+        }
+
+        Some((left, right))
+    }
+    fn paths_to_acceptance(&self, workflows: &HashMap<String, Workflow>) -> u64 {
+        match self.location.as_str() {
+            "A" => return self.positions(),
+            "R" => return 0,
+            _ => {}
+        }
+
+        let relevant_workflow = workflows.get(&self.location).unwrap();
+
+        let spawned_parts = relevant_workflow.process_super_part(self);
+
+        let mut accum = 0;
+        for part in spawned_parts {
+            accum += part.paths_to_acceptance(workflows);
+        }
+        accum
+    }
+    fn positions(&self) -> u64 {
+        ((self.x.left + 1) - self.x.right)
+            + ((self.m.left + 1) - self.m.right)
+            + ((self.a.left + 1) - self.a.right)
+            + ((self.s.left + 1) - self.s.right)
+    }
+}
+impl Default for SuperPosPart {
+    fn default() -> Self {
+        Self {
+            location: "in".to_owned(),
+            x: Default::default(),
+            m: Default::default(),
+            a: Default::default(),
+            s: Default::default(),
+        }
     }
 }
 
@@ -230,6 +410,17 @@ pub async fn d19s1(submit: bool, example: bool) {
 }
 
 pub async fn d19s2(submit: bool, example: bool) {
-    let (_, _) = input(example).await;
-    final_answer("NaN", submit, DAY, 2).await;
+    let (workflow_raw_lines, _) = input(example).await;
+    let mut workflows: HashMap<String, Workflow> = HashMap::new();
+
+    for workflow_raw in workflow_raw_lines {
+        let workflow = Workflow::from_str(&workflow_raw);
+        workflows.insert(workflow.label.clone(), workflow);
+    }
+
+    let super_part = SuperPosPart::default();
+
+    let answer = super_part.paths_to_acceptance(&workflows);
+
+    final_answer(answer, submit, DAY, 2).await;
 }
