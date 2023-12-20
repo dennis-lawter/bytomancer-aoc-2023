@@ -102,38 +102,36 @@ impl TestRule {
     }
 
     fn apply_to_super_part(&self, part: &SuperPosPart) -> Vec<SuperPosPart> {
-        let test_value_range = match self.var_tested {
-            PartVar::X => part.x.clone(),
-            PartVar::M => part.m.clone(),
-            PartVar::A => part.a.clone(),
-            PartVar::S => part.s.clone(),
-        };
+        // let test_value_range = match self.var_tested {
+        //     PartVar::X => part.x.clone(),
+        //     PartVar::M => part.m.clone(),
+        //     PartVar::A => part.a.clone(),
+        //     PartVar::S => part.s.clone(),
+        // };
 
         let mut pre_output: Vec<Option<SuperPosPart>> = vec![];
 
-        match test_value_range.intersection(&self.number_range_inclusive) {
-            Some(intersection) => {
-                let mut new_part = part.clone();
-                new_part.location = self.destination.clone();
-                let (left, remainder_result) =
-                    part.split_at(self.var_tested.clone(), intersection.left);
-                pre_output.push(left);
-                match remainder_result {
-                    Some(remainder) => {
-                        let (middle, right) =
-                            remainder.split_at(self.var_tested.clone(), intersection.left);
-
-                        pre_output.push(middle);
-                        pre_output.push(right);
-                    }
+        // let mut new_part = part.clone();
+        // new_part.location = self.destination.clone();
+        let (left, remainder_result) = if self.number_range_inclusive.left > 1 {
+            part.split_before(
+                self.var_tested.clone(),
+                self.number_range_inclusive.left - 1,
+            )
+        } else {
+            (None, Some(part.clone()))
+        };
+        pre_output.push(left);
+        match remainder_result {
+            Some(remainder) => {
+                let (mut middle, right) = remainder
+                    .split_before(self.var_tested.clone(), self.number_range_inclusive.right);
+                match middle.as_mut() {
+                    Some(found_middle) => found_middle.location = self.destination.clone(),
                     None => {}
                 }
-                // match self.var_tested {
-                //     PartVar::X => new_part.x = intersection,
-                //     PartVar::M => new_part.m = intersection,
-                //     PartVar::A => new_part.a = intersection,
-                //     PartVar::S => new_part.s = intersection,
-                // }
+                pre_output.push(middle);
+                pre_output.push(right);
             }
             None => {}
         }
@@ -272,29 +270,29 @@ impl CustomRange {
     fn contains_value(&self, value: u64) -> bool {
         value >= self.left && value <= self.right
     }
-    fn intersection(&self, other: &Self) -> Option<Self> {
-        if self.left == other.left {
-            let smaller_right = if self.right < other.right {
-                self.right
-            } else {
-                other.right
-            };
-            Some(Self::new(self.left, smaller_right))
-        } else if self.left > other.left {
-            other.intersection(self)
-        } else {
-            if other.left > self.right {
-                None
-            } else {
-                let smaller_right = if self.right < other.right {
-                    self.right
-                } else {
-                    other.right
-                };
-                Some(Self::new(other.left, smaller_right))
-            }
-        }
-    }
+    // fn intersection(&self, other: &Self) -> Option<Self> {
+    //     if self.left == other.left {
+    //         let smaller_right = if self.right < other.right {
+    //             self.right
+    //         } else {
+    //             other.right
+    //         };
+    //         Some(Self::new(self.left, smaller_right))
+    //     } else if self.left > other.left {
+    //         other.intersection(self)
+    //     } else {
+    //         if other.left > self.right {
+    //             None
+    //         } else {
+    //             let smaller_right = if self.right < other.right {
+    //                 self.right
+    //             } else {
+    //                 other.right
+    //             };
+    //             Some(Self::new(other.left, smaller_right))
+    //         }
+    //     }
+    // }
 }
 impl Default for CustomRange {
     fn default() -> Self {
@@ -314,12 +312,13 @@ struct SuperPosPart {
     s: CustomRange,
 }
 impl SuperPosPart {
-    // super_part.split_at(PartVar::x, 2000) => ({x = 0..=1999} {x = 2000..=4000})
-    fn split_at(
+    // super_part.split_before(PartVar::x, 2000) => ({x = 0..=1999} {x = 2000..=4000})
+    fn split_before(
         &self,
         var_considered: PartVar,
         split_before_number: u64,
     ) -> (Option<Self>, Option<Self>) {
+        assert!(split_before_number > 0);
         let mut left = self.clone();
         let mut right = self.clone();
 
