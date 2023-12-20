@@ -26,6 +26,7 @@ async fn input(example: bool) -> (Vec<String>, Vec<String>) {
 
 struct DefaultRule(String);
 
+#[derive(Clone)]
 enum PartVar {
     X,
     M,
@@ -100,7 +101,7 @@ impl TestRule {
         }
     }
 
-    fn apply_to_super_part(&self, part: &SuperPosPart) -> Option<SuperPosPart> {
+    fn apply_to_super_part(&self, part: &SuperPosPart) -> Vec<SuperPosPart> {
         let test_value_range = match self.var_tested {
             PartVar::X => part.x.clone(),
             PartVar::M => part.m.clone(),
@@ -108,21 +109,40 @@ impl TestRule {
             PartVar::S => part.s.clone(),
         };
 
+        let mut pre_output: Vec<Option<SuperPosPart>> = vec![];
+
         match test_value_range.intersection(&self.number_range_inclusive) {
             Some(intersection) => {
                 let mut new_part = part.clone();
                 new_part.location = self.destination.clone();
-                match self.var_tested {
-                    PartVar::X => new_part.x = intersection,
-                    PartVar::M => new_part.m = intersection,
-                    PartVar::A => new_part.a = intersection,
-                    PartVar::S => new_part.s = intersection,
-                }
+                let (left, remainder_result) =
+                    part.split_at(self.var_tested.clone(), intersection.left);
+                pre_output.push(left);
+                match remainder_result {
+                    Some(remainder) => {
+                        let (middle, right) =
+                            remainder.split_at(self.var_tested.clone(), intersection.left);
 
-                Some(new_part)
+                        pre_output.push(middle);
+                        pre_output.push(right);
+                    }
+                    None => {}
+                }
+                // match self.var_tested {
+                //     PartVar::X => new_part.x = intersection,
+                //     PartVar::M => new_part.m = intersection,
+                //     PartVar::A => new_part.a = intersection,
+                //     PartVar::S => new_part.s = intersection,
+                // }
             }
-            None => None,
+            None => {}
         }
+
+        pre_output
+            .iter()
+            .filter(|item| item.is_some())
+            .map(|item| item.clone().unwrap())
+            .collect()
     }
 }
 
@@ -145,12 +165,12 @@ impl Rule {
         }
     }
 
-    fn apply_to_super_part(&self, part: &SuperPosPart) -> Option<SuperPosPart> {
+    fn apply_to_super_part(&self, part: &SuperPosPart) -> Vec<SuperPosPart> {
         match self {
             Rule::Default(default_rule) => {
                 let mut new_part = part.clone();
                 new_part.location = default_rule.0.clone();
-                Some(new_part)
+                vec![new_part]
             }
             Rule::Test(test_rule) => test_rule.apply_to_super_part(part),
         }
@@ -195,17 +215,16 @@ impl Workflow {
     }
 
     fn process_super_part(&self, part: &SuperPosPart) -> Vec<SuperPosPart> {
-        let mut parts = vec![];
+        let mut parts_generated = vec![];
+
         for rule in self.rules.iter() {
             // TODO: this needs to split the part after rule applications,
             // creating the inverse parts where the rule could not be applied.
             // Only those inverse parts continue down the rules list.
-            match rule.apply_to_super_part(part) {
-                Some(part_after_rule) => parts.push(part_after_rule),
-                None => {}
-            }
+            let mut rule_results = rule.apply_to_super_part(part);
+            parts_generated.append(&mut rule_results);
         }
-        parts
+        parts_generated
     }
 }
 
@@ -239,7 +258,7 @@ impl Part {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct CustomRange {
     left: u64,
     right: u64,
@@ -286,7 +305,7 @@ impl Default for CustomRange {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct SuperPosPart {
     location: String,
     x: CustomRange,
@@ -296,44 +315,65 @@ struct SuperPosPart {
 }
 impl SuperPosPart {
     // super_part.split_at(PartVar::x, 2000) => ({x = 0..=1999} {x = 2000..=4000})
-    fn split_at(&self, var_considered: PartVar, split_before_number: u64) -> Option<(Self, Self)> {
+    fn split_at(
+        &self,
+        var_considered: PartVar,
+        split_before_number: u64,
+    ) -> (Option<Self>, Option<Self>) {
         let mut left = self.clone();
         let mut right = self.clone();
 
         match var_considered {
             PartVar::X => {
                 if self.x.contains_value(split_before_number) {
-                    return None;
+                    return (None, None);
+                } else if self.x.left == split_before_number {
+                    return (None, Some(self.clone()));
+                } else if self.x.right + 1 == split_before_number {
+                    return (Some(self.clone()), None);
                 }
                 left.x.left = split_before_number - 1;
                 right.x.right = split_before_number;
             }
             PartVar::M => {
                 if self.m.contains_value(split_before_number) {
-                    return None;
+                    return (None, None);
+                } else if self.m.left == split_before_number {
+                    return (None, Some(self.clone()));
+                } else if self.m.right + 1 == split_before_number {
+                    return (Some(self.clone()), None);
                 }
                 left.m.left = split_before_number - 1;
                 right.m.right = split_before_number;
             }
             PartVar::A => {
                 if self.a.contains_value(split_before_number) {
-                    return None;
+                    return (None, None);
+                } else if self.a.left == split_before_number {
+                    return (None, Some(self.clone()));
+                } else if self.a.right + 1 == split_before_number {
+                    return (Some(self.clone()), None);
                 }
                 left.a.left = split_before_number - 1;
                 right.a.right = split_before_number;
             }
             PartVar::S => {
                 if self.s.contains_value(split_before_number) {
-                    return None;
+                    return (None, None);
+                } else if self.s.left == split_before_number {
+                    return (None, Some(self.clone()));
+                } else if self.s.right + 1 == split_before_number {
+                    return (Some(self.clone()), None);
                 }
                 left.s.left = split_before_number - 1;
                 right.s.right = split_before_number;
             }
         }
 
-        Some((left, right))
+        (Some(left), Some(right))
     }
     fn paths_to_acceptance(&self, workflows: &HashMap<String, Workflow>) -> u64 {
+        println!("Calculating acceptance:\n{:?}\n", self);
         match self.location.as_str() {
             "A" => return self.positions(),
             "R" => return 0,
