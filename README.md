@@ -44,6 +44,7 @@ I decided to add on a few features to ease development
 ```
       --------Part 1--------   --------Part 2--------
 Day       Time   Rank  Score       Time   Rank  Score
+ 20   01:52:14   3338      0          -      -      -
  19   00:48:15   3285      0          -      -      -
  18   00:52:30   2982      0   23:00:17  15543      0
  17   12:40:10  10748      0   20:05:04  13459      0
