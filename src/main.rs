@@ -120,6 +120,10 @@ async fn main() {
         "d05s1rev" => solutions::day05rev::d05s1(submit, example).await,
         "d05s2rev" => solutions::day05rev::d05s2(submit, example).await,
 
+        // LUA
+        "d01s1lua" => solutions::day01lua::d01s1(submit, example).await,
+        "d01s2lua" => solutions::day01lua::d01s2(submit, example).await,
+
         // VISUALIZATIONS
 
         // ERR

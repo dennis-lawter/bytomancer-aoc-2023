@@ -37,6 +37,9 @@ pub mod day20;
 // revisions
 pub mod day05rev;
 
+// lua
+pub mod day01lua;
+
 // visualizations
 
 pub async fn input_raw(day: u8, example: bool) -> String {

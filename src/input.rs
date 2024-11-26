@@ -18,7 +18,7 @@ pub async fn get_example_from_the_web(day: u8) -> String {
     );
     let session = dotenv::var(crate::prelude::ENV_KEY).expect(
         format!(
-            "Please provide a .env with the {} variable",
+            "Please provide a .env with the {} variable (obtained from your cookie's 'session' value)",
             crate::prelude::ENV_KEY
         )
         .as_str(),
@@ -144,7 +144,7 @@ fn get_file_path_from_cache(input_url: &String) -> Option<String> {
 async fn get_input_as_string_from_site(input_url: &String) -> String {
     let session = dotenv::var(crate::prelude::ENV_KEY).expect(
         format!(
-            "Please provide a .env with the {} variable",
+            "Please provide a .env with the {} variable (obtained from your cookie's 'session' value)",
             crate::prelude::ENV_KEY
         )
         .as_str(),
