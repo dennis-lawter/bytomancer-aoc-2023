@@ -22,11 +22,6 @@
         openssl.dev
         pkg-config
       ];
-      shellHook = ''
-        rustup toolchain install nightly-2024-10-20
-        rustup default nightly-2024-10-20
-        export RUSTC=$(rustup which rustc)
-      '';
     };
   };
 }
