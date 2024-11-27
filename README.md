@@ -65,3 +65,18 @@ Day       Time   Rank  Score       Time   Rank  Score
   2   00:17:09   3551      0   00:24:00   3821      0
   1   00:16:39   7347      0   00:35:25   3991      0
 ```
+
+## Fennel Support
+I've added support for lua and fennel,
+allowing development in these environments.
+
+You'll want lua5.2 installed.
+
+Be sure to run these commands:
+```bash
+git submodule update --init --recursive
+cd fennel
+make
+cp fennel.lua ..
+cd ..
+```

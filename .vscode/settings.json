@@ -7,5 +7,6 @@
     "editor.rulers": [
         80,
     ],
-    "editor.minimap.maxColumn": 80
+    "editor.minimap.maxColumn": 80,
+    "stylua.targetReleaseVersion": "latest"
 }

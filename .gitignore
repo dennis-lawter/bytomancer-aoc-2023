@@ -18,3 +18,8 @@ Cargo.lock
 # Project ignores
 /_cache
 /.env
+
+
+
+# Externals
+fennel.lua
